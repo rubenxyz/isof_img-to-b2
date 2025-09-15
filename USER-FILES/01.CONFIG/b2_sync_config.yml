@@ -1,0 +1,42 @@
+# B2 Sync Configuration
+# This file configures the Backblaze B2 image sync tool
+
+b2:
+  # The name of your B2 bucket
+  bucket_name: isof-bucket
+
+  # Number of parallel sync threads
+  sync_threads: 10
+
+  # Number of retry attempts for failed operations
+  retry_attempts: 3
+
+  # Sync operation timeout in seconds
+  sync_timeout: 1800
+
+  # Maximum file size in gigabytes
+  max_file_size_gb: 5
+
+1password:
+  # The name of your 1Password item containing B2 credentials
+  # This item should have fields: keyID, applicationKey
+  # Optional field: Bucket (overrides bucket_name above)
+  item_name: B2 Application Key isof
+
+processing:
+  # Supported image file formats
+  supported_formats:
+  - .jpg
+  - .jpeg
+  - .png
+  - .gif
+  - .bmp
+  - .tiff
+  - .webp
+  # Patterns for files to exclude from sync
+  exclude_patterns:
+  - ".*\\.DS_Store"
+  - ".*Thumbs\\.db"
+  - ".*\\.tmp"
+  # Set to true to preview operations without making changes
+  dry_run: false
