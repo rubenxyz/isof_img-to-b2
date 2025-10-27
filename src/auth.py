@@ -141,15 +141,33 @@ class B2Auth:
             logger.warning("B2 CLI not available or timed out during verification")
             return False
     
+    def clear_b2_auth(self) -> None:
+        """Clear any existing B2 authentication to force fresh login."""
+        if not Config.B2_CLI:
+            return
+        
+        try:
+            result = subprocess.run(
+                [Config.B2_CLI, "account", "clear"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                logger.info("Cleared existing B2 authentication")
+            else:
+                logger.debug("No existing B2 authentication to clear")
+        except Exception as e:
+            logger.debug(f"Could not clear B2 auth (may not exist): {e}")
+    
     def authenticate(self) -> bool:
         """Complete authentication flow: get credentials and authorize B2."""
         try:
             logger.info("Starting B2 authentication flow")
             
-            # Check if already authenticated
-            if self.verify_b2_auth():
-                logger.info("Already authenticated with B2")
-                return True
+            # Always clear existing authentication to avoid using cached credentials
+            # for the wrong bucket (important when working with multiple buckets)
+            self.clear_b2_auth()
             
             # Get credentials and authorize
             self.get_1password_credentials()
@@ -169,10 +187,22 @@ class B2Auth:
             raise B2AuthError(f"Authentication failed: {e}")
     
     def get_bucket_name(self) -> str:
-        """Get the bucket name from credentials or config."""
+        """Get the bucket name, prioritizing config over 1Password item.
+
+        If the config specifies a bucket_name, use it. Otherwise, fall back to
+        the 'Bucket' field from the 1Password item if available.
+        """
+        bucket_from_config = self.config.bucket_name
+        if bucket_from_config:
+            # Prefer explicit configuration
+            if self.credentials and self.credentials.get('Bucket') and self.credentials['Bucket'] != bucket_from_config:
+                logger.debug(f"Overriding 1Password bucket '{self.credentials['Bucket']}' with configured bucket '{bucket_from_config}'")
+            return bucket_from_config
+        
         if self.credentials and self.credentials.get('Bucket'):
             return self.credentials['Bucket']
-        return self.config.bucket_name
+        
+        return bucket_from_config
 
 
 def authenticate_b2(config: Config) -> B2Auth:
