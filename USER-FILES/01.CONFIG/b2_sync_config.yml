@@ -2,9 +2,6 @@
 # This file configures the Backblaze B2 image sync tool
 
 b2:
-  # The name of your B2 bucket
-  bucket_name: isof-bucket
-
   # Number of parallel sync threads
   sync_threads: 10
 
@@ -17,11 +14,11 @@ b2:
   # Maximum file size in gigabytes
   max_file_size_gb: 5
 
-1password:
-  # The name of your 1Password item containing B2 credentials
-  # This item should have fields: keyID, applicationKey
-  # Optional field: Bucket (overrides bucket_name above)
-  item_name: B2 Application Key isof
+# Authentication is configured via profile file:
+#   USER-FILES/03.PROFILES/auth_isof.yaml
+# Example:
+# 1password:
+#   item_name: B2 Application Key isof
 
 processing:
   # Supported image file formats

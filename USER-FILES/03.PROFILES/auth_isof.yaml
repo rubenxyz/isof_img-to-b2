@@ -1,0 +1,6 @@
+# Auth and destination profile for B2 sync
+b2:
+  bucket_name: isof-bucket
+
+1password:
+  item_name: B2 Application Key isof

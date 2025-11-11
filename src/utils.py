@@ -18,7 +18,7 @@ DEFAULT_B2_ENDPOINT = "f003"  # Default Backblaze endpoint
 def create_timestamped_output_dir(base_dir: Path) -> Path:
     """Create a timestamped output directory for this run."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_dir = base_dir / timestamp
+    output_dir = base_dir / f"{timestamp}_IMG-URL"
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Created output directory: {output_dir}")
     return output_dir

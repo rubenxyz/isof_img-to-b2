@@ -7,23 +7,23 @@ from typing import Dict, Set, Optional, Any
 
 
 class Config:
-    """Configuration management for the Backblaze B2 Image Sync tool."""
+    """Configuration management for the Backblaze B2 Image Sync tool.
+
+    This class now separates operational settings (in 01.CONFIG/b2_sync_config.yml)
+    from destination/auth profile (in 03.PROFILES/auth_isof.yaml).
+    """
     
     # CLI Tool Paths
     B2_CLI: Optional[str] = shutil.which("b2")
     OP_CLI: Optional[str] = shutil.which("op")
     
-    # Default Settings
+    # Default Settings (no destination/auth defaults here)
     DEFAULT_CONFIG = {
         "b2": {
-            "bucket_name": "fal-bucket",
             "sync_threads": 10,
             "retry_attempts": 3,
             "sync_timeout": 1800,
             "max_file_size_gb": 5
-        },
-        "1password": {
-            "item_name": "B2 Application Key Fal"
         },
         "processing": {
             "supported_formats": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"],
@@ -35,19 +35,23 @@ class Config:
     PROJECT_ROOT = Path(__file__).parent.parent
     USER_FILES = PROJECT_ROOT / "USER-FILES"
     CONFIG_DIR = USER_FILES / "01.CONFIG"
+    PROFILES_DIR = USER_FILES / "03.PROFILES"
     INPUT_DIR = USER_FILES / "04.INPUT"
     OUTPUT_DIR = USER_FILES / "05.OUTPUT"
     
-    # Config file path
+    # Config file paths
     CONFIG_FILE = CONFIG_DIR / "b2_sync_config.yml"
+    PROFILE_FILE = PROFILES_DIR / "auth_isof.yaml"
     
-    def __init__(self, config_file: Optional[Path] = None):
-        """Initialize configuration from file or defaults."""
+    def __init__(self, config_file: Optional[Path] = None, profile_file: Optional[Path] = None):
+        """Initialize configuration from files or defaults."""
         self.config_file = config_file or self.CONFIG_FILE
+        self.profile_file = profile_file or self.PROFILE_FILE
         self.config_data = self._load_config()
+        self.profile_data = self._load_profile()
         
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from YAML file or use defaults."""
+        """Load operational configuration from YAML file or use defaults."""
         if self.config_file.exists():
             try:
                 with open(self.config_file, 'r') as f:
@@ -60,6 +64,17 @@ class Config:
                 print(f"Warning: Could not load config from {self.config_file}: {e}")
                 print("Using default configuration")
         return self.DEFAULT_CONFIG.copy()
+
+    def _load_profile(self) -> Dict[str, Any]:
+        """Load destination/auth profile. Must exist and define bucket and 1Password item."""
+        try:
+            if self.profile_file.exists():
+                with open(self.profile_file, 'r') as f:
+                    data = yaml.safe_load(f) or {}
+                return data
+        except Exception as e:
+            print(f"Warning: Could not load profile from {self.profile_file}: {e}")
+        return {}
     
     def _deep_merge(self, base: Dict, updates: Dict) -> None:
         """Deep merge updates into base dictionary."""
@@ -70,20 +85,32 @@ class Config:
                 base[key] = value
     
     def save_config(self) -> None:
-        """Save current configuration to YAML file."""
+        """Save current operational configuration to YAML file."""
         self.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(self.config_file, 'w') as f:
             yaml.dump(self.config_data, f, default_flow_style=False, sort_keys=False)
     
+    def save_profile(self) -> None:
+        """Save current destination/auth profile to YAML file."""
+        self.PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+        with open(self.profile_file, 'w') as f:
+            yaml.dump(self.profile_data, f, default_flow_style=False, sort_keys=False)
+    
     @property
     def bucket_name(self) -> str:
-        """Get configured bucket name."""
-        return self.config_data["b2"]["bucket_name"]
+        """Get bucket name from profile (required)."""
+        try:
+            return self.profile_data["b2"]["bucket_name"]
+        except Exception:
+            raise ValueError("Bucket name not configured. Set b2.bucket_name in 03.PROFILES/auth_isof.yaml")
     
     @property
     def op_item_name(self) -> str:
-        """Get 1Password item name."""
-        return self.config_data["1password"]["item_name"]
+        """Get 1Password item name from profile (required)."""
+        try:
+            return self.profile_data["1password"]["item_name"]
+        except Exception:
+            raise ValueError("1Password item not configured. Set 1password.item_name in 03.PROFILES/auth_isof.yaml")
     
     @property
     def supported_formats(self) -> Set[str]:
@@ -128,7 +155,7 @@ class Config:
     
     @classmethod
     def validate_environment(cls) -> bool:
-        """Validate that required tools and directories are available."""
+        """Validate required tools and directories are available."""
         errors = []
         
         # Check CLI tools
@@ -141,6 +168,12 @@ class Config:
         # Check directories
         if not cls.get_input_path().exists():
             errors.append(f"Input directory '{cls.INPUT_DIR}' does not exist.")
+        
+        # Ensure profiles dir exists
+        try:
+            cls.PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            errors.append(f"Could not create profiles directory '{cls.PROFILES_DIR}'.")
         
         # Create output directory if it doesn't exist
         cls.get_output_path().mkdir(parents=True, exist_ok=True)

@@ -36,6 +36,7 @@ class B2Sync:
         """Build the B2 sync command with all necessary options."""
         sync_command = [
             Config.B2_CLI, "sync",
+            "--threads", "4",  # Hardcoded safe thread count to avoid upload token conflicts
             "--replace-newer",  # Allow older local files to replace newer destination files
             "--delete",  # Delete files from destination that are not in source (true mirroring)
         ]
